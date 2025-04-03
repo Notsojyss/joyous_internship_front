@@ -46,7 +46,7 @@ export default {
         filteredGroupedListings() {
             if (!this.searchQuery) return this.groupedListings;
             return this.groupedListings.filter(item =>
-                item.item_name.toLowerCase().includes(this.searchQuery.toLowerCase())
+                item.item_name.toLowerCase().startsWith(this.searchQuery.toLowerCase())
             );
         },
         listingCounts() {
@@ -108,17 +108,25 @@ export default {
             this.authStore.fetchListings();
 
         },
-         async handleBuyItem (listing){
+      async handleBuyItem(listing) {
         try {
-            await this.authStore.buyItem( {id: listing.id, quantity: listing.quantity, idType: 'listing_id'});
-             await this.authStore.fetchListings();
-           await this.authStore.fetchMoney();
+          if (confirm(`Are you sure you want to buy this "${listing.item_name}"?`)) {
+            await this.authStore.buyItem({
+              id: listing.id,
+              quantity: listing.quantity,
+              idType: 'listing_id'
+            });
 
-            this.filteredListings = this.listings.filter(listing => listing.item_name === this.selectedItem.name);
+            await this.authStore.fetchListings();
+            await this.authStore.fetchMoney();
+
+            this.filteredListings = this.listings.filter(item => item.item_name === this.selectedItem.name);
+          }
         } catch (error) {
-            console.error("Purchase failed:", error);
+          console.error("Purchase failed:", error);
         }
-        },
+      }
+      ,
 
     }
 };
@@ -126,22 +134,26 @@ export default {
 
 <template>
     <div class="market-container">
-        <h1>Market</h1>
+        <h2 class="market-header">Market</h2>
+      <h2 class="market-listings-header"><br></h2>
         <div class="toggle-buttons">
             <button :class="{ active: currentView === 'buy' }" @click=this.handleCurrentView()>Buy</button>
             <button :class="{ active: currentView === 'sell' }" @click="currentView = 'sell'">Sell</button>
         </div>
 
         <!-- Buy View: Market Listings -->
+
         <div v-if="currentView === 'buy'">
-            <h2>Market Listings</h2>
+
             <input
                 v-model="searchQuery"
                 type="text"
                 placeholder="Search for an item..."
                 class="search-input"
             />
+
             <div v-if="filteredGroupedListings.length > 0" class="listing-grid">
+
                 <div v-for="item in filteredGroupedListings" :key="item.item_name" class="listing-card">
                     <img :src="item.image" :alt="item.item_name" class="listing-image" />
                     <h3 class="itemListing">Available Listing {{ listingCounts[item.item_id] || 0 }}</h3>
@@ -152,12 +164,13 @@ export default {
                     </button>
                 </div>
             </div>
-            <p v-else>No active listings available.</p>
+            <p v-else></p>
 
         </div>
 
+
         <div v-if="currentView === 'sell'" class="sell-container">
-            <h2>Sell Items</h2>
+            <h2 class="sell-container-header">Sell Items</h2>
 
             <!-- Show items if they exist, otherwise show empty slots -->
             <div class="sell-grid">
@@ -177,7 +190,7 @@ export default {
                     class="sell-slot empty"
                 >
                     <p>Empty</p>
-                    <button @click="handlePlaceClick()">Place</button>
+                    <button @click="handlePlaceClick()">Sell Item</button>
                 </div>
             </div>
 
@@ -207,7 +220,7 @@ export default {
             </div>
 
             <!-- Modal for entering quantity and price -->
-            <div v-if="showSellModal" class="modal-overlay" @click="showSellModal = false">
+            <div v-if="showSellModal" class="modal-overlay">
                 <div class="modal-content-sell-input" @click.stop>
                     <h3>Sell {{ selectedItem?.item_name }}</h3>
                     <label>Quantity:</label>
@@ -224,7 +237,7 @@ export default {
 
         <!-- Modal for Item Listings -->
 
-        <div v-if="showModal" class="modal-overlay-item-listing">
+        <div v-if="showModal" class="modal-overlay-item-listing" @click.self="showModal = false">
 
             <div class="modal-content-buy-list">
                 <div class = "modal-content-buy-list-header">
@@ -235,7 +248,7 @@ export default {
                 </div>
 
                 <!-- History Overlay Pop-Up -->
-                <div v-if="showHistory" class="overlay">
+                <div v-if="showHistory" class="overlay" @click.self="showHistory = false">
                     <div class="popup-history">
                         <div class="popup-header">
                             <h3>Item History</h3>
@@ -280,7 +293,6 @@ export default {
                         <div class="listing-details">
                             <h3 class="listItemname">{{ listing.item_name }}</h3>
                             <p class="listRarity"><strong>Rarity:</strong> {{ listing.rarity }}</p>
-                            <p class="listDescription">Description: {{ listing.description }}</p>
                             <p class="listQuantity"><strong>Quantity:</strong> {{ listing.quantity }}</p>
                             <p class="listPrice"><strong>Price:</strong> {{ listing.price * listing.quantity }} coins</p>
                             <p class="listSeller"><strong>Seller:</strong> {{ listing.username }}</p>
@@ -297,60 +309,88 @@ export default {
 
 </template>
 <style scoped>
-
-.market-container {
-    text-align: center;
-    background-color: whitesmoke;
-    padding: 20px;
-    text-align: center;
-    min-width: 1200px;
-    margin-right: 125px;
-    margin-top: 120px;
-    border: #2c3e50 2px solid;
-    //overflow-y: auto;
-    //overflow-x: hidden;
-    max-height: 650px;
-    min-height: 650px;
-    max-width: 1200px;
-    background-color: whitesmoke;
+.market-header {
+  position: relative;
+  color: #f5ff28;
+  left: -450px;
+  top: -20px;
+  font-weight: bold;
+  font-family: "Brush Script MT";
+  font-size: 40px;
+  text-transform: uppercase;
 }
-.toggle-buttons {
-    margin-bottom: 20px;
+.market-container {
+  position: relative;
+  text-align: center;
+  background: transparent;
+  padding: 20px;
+  min-width: 1528px;
+  left: -156px;
+  margin-top: 120px;
+  max-height: 650px;
+  min-height: 650px;
+  max-width: 1200px;
+  overflow-x: hidden;
+  overflow-y: hidden;
+
 }
 .toggle-buttons button {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    margin: 5px;
-    cursor: pointer;
+
+  background: yellow;
+  position: relative;
+  top: -55px;
+  right: -475px;
+  color: #222;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 120px;
+  transition: background 0.2s;
+  margin-right: 10px;
+  margin-left: 1px;
 }
 .toggle-buttons button.active {
-    background-color: #2E7D32;
+    background-color: #76f47c;
 }
 .sell-container {
-    align-items: center;
-    padding: 0;
-    min-width: 1000px;
-    min-height: 480px;
-    justify-items: center;
-    max-height: 480px;
-    max-width: 1200px;
-    overflow-y: auto;
-    overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  justify-content: start;
+  min-height: 400px ;
+  max-height: 450px;
+  width: 1200px;
+  position: relative;
 
+  top: -50px;
+  right: -150px;
+  background: linear-gradient(45deg, #373737 60%, #8f8f8f);
+
+
+}
+.sell-container-header{
+  position: relative;
+ color: whitesmoke;
+  top: -40px;
+  text-align: center;
+  left: 500px;
+  width: 200px;
+  cursor: text;
 }
 
 .sell-grid {
+  position: relative;
     display: flex;
     flex-direction: column; /* Ensures items are stacked vertically */
     justify-items: center;
     gap: 10px; /* Adds spacing between items */
-    min-width: 1000px;
-    max-width: 1000px;
-    max-height: 600px;
-    min-height: auto;
-
+  width: 1200px;
+  min-height: 450px ;
+  max-height: 450px;
+  top: -40px;
+  left: 20px;
 }
 
 .sell-slot {
@@ -359,15 +399,24 @@ export default {
     align-items: center;
     background: #f8f9fa;
     padding: 15px;
-    border-radius: 10px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #222, #444);
     text-align: center;
     min-height: 100px;
     max-height: 100px;
-    width: 100%;
+  border-radius: 5px;
+  width: 1182px;
+  border: #ffffff solid 2px;
+  margin-left: -10px;
+  position: relative;
+  top:10px ;
+
+
 
     //min-height: 100px;
     //max-height: 100px;
+}
+.sell-slot h3, p{
+  color: whitesmoke;
 }
 
 .item-image {
@@ -375,6 +424,9 @@ export default {
     height: 100px;
     object-fit: cover;
     border-radius: 5px;
+  border: purple solid;
+  padding: 10px;
+  background: #b5dddd;
 }
 
 button:hover {
@@ -385,11 +437,10 @@ button:hover {
     flex-direction: column;
     overflow: hidden;
     position: fixed;
-    background: white;
+  background: linear-gradient(45deg, #373737 60%, #8f8f8f);
     padding: 20px;
     border-radius: 8px;
     text-align: center;
-    position: fixed;
     left: 160px;
     max-width: 1200px;
     min-width: 1200px;
@@ -397,11 +448,14 @@ button:hover {
     max-height: 520px;
     border: black solid 2px;
 }
+.modal-content-buy-list-header h2{
+  color: whitesmoke;
+}
 
 .modal-content-buy-list .close-btn{
     position: fixed;
-    top: 600px;
-    right: 725px;
+    top: 595px;
+    right: 740px;
 }
 
 .listing-grid {
@@ -409,11 +463,17 @@ button:hover {
     flex-direction: column;
     gap: 5px;
     justify-content: start;
-    min-height: 450px;
+    min-height: 450px ;
     max-height: 450px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    border: black solid 2px;
+    width: 1200px;
+  position: relative;
+
+    top: -95px;
+    right: -150px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: linear-gradient(45deg, #373737 60%, #8f8f8f);
+
 
 }
 .view-listing-btn{
@@ -423,24 +483,28 @@ position: fixed;
 }
 
 .listing-card {
-    border: 1px solid #ddd;
     padding: 15px;
     border-radius: 5px;
-    width: 1155px;
+    width: 1162px;
     text-align: center;
-    border: black solid 2px;
-    background-color: white;
+    border: #ffffff solid 2px;
     min-height: 100px;
     max-height: 100px;
+  margin-left: 12px;
+
+  background: linear-gradient(135deg, #222, #444);
 }
 
 .listing-image {
     position: relative;
     left: -500px;
-    top: 0;
-    width: 70px;
-    height: 70px;
+    top: -12px;
+    width: 90px;
+    height: 90px;
     border-radius: 5px;
+  border: purple solid;
+  padding: 10px;
+  background: #b5dddd;
 }
 
 button {
@@ -473,7 +537,7 @@ button:hover {
     border: 1px solid #ddd;
     padding: 10px;
     border-radius: 5px;
-    background: #f9f9f9;
+  background: linear-gradient(135deg, #222, #444);
     width: 100%;
     min-width: 0;
     min-height: 100px;
@@ -488,6 +552,7 @@ button:hover {
 }
 
 .listing-details {
+
     flex: 1;
     text-align: left;
     min-width: 0;
@@ -506,125 +571,118 @@ button:hover {
 }
 .listing-card .itemNameH3 {
     position: relative;
-    top: -115px;
+    top: -135px;
+color: whitesmoke;
     font-weight: bold;
 }
 .listing-card .itemListing {
     position: relative;
-    top: -54px;
+    top: -75px;
     right: -330px;
+  color: whitesmoke;
     font-size: 14px;
 }
 .listing-card .itemNametext {
     position: relative;
-    top: -112px;
+    top: -132px;
     font-weight: bold;
+  color: whitesmoke;
 }
 .listing-card button {
     position: relative;
-    top: -143px;
+    top: -163px;
     right: -500px;
     font-weight: bold;
 }
-.listing-details .listItemname{
+.listItemname{
     position: relative;
     text-align: center;
-    top: 105px;
+    top: 70px;
     right: 10px;
-    width: 100px;
+    width: 200px;
+  color: whitesmoke;
+  font-weight: bold;
 
 
 }
-.listing-details .listRarity{
+ .listRarity{
     position: relative;
-    top: 65px;
-    right: -95px;
+    top: 45px;
+    right: -225px;
     width: 100px;
+  color: whitesmoke;
 
 }
-.listing-details .listDescription{
+ .listDescription{
     position: relative;
     text-align: center;
-    top: 25px;
+    top: 20px;
     right: -200px;
     width: 200px;
+  color: whitesmoke;
 }
-.listing-details .listQuantity{
+ .listQuantity{
     position: relative;
-    top: -8px;
-    right: -500px;
-}.listing-details .listPrice{
+    top: 20px;
+    right: -380px;
+  color: whitesmoke;
+}
+.listPrice{
      position: relative;
-     top: -33px;
-     right: -625px;
+     top: -3px;
+     right: -535px;
+   color: whitesmoke;
  }
-.listing-details .listSeller{
+.listSeller{
     position: relative;
-    top: -58px;
-    right: -800px;
+    top: -28px;
+  color: whitesmoke;
+    right: -700px;
 }
 .listing-details button{
     position: relative;
-    top: -85px;
-    right: -950px;
+    top: -70px;
+    right: -870px;
+  width: 100px;
 }
-.listing-row .listing-image-small{
-    height: auto;
+ .listing-image-small{
+    height: 80px;
     max-width: 80px;
+   padding: 8px;
+   border: purple solid;
+   background: #b5dddd;
 
-.sell-slot {
-        width: 120px;
-        height: 120px;
-        border: 2px dashed #ccc;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f9f9f9;
-    }
-    .sell-grid {
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        margin-top: 20px;
-    }
+
 }
 .modal-overlay {
-    position: fixed;
-    top: 100px;
-    margin:auto;
-    max-height: 600px;
-    min-height: 600px;
-    min-width: 1200px;
-    max-width: 1200px;
-
-
-    display: flex;
-    align-items: center;
-    justify-items: center;
-    overflow-y: auto;
-    overflow-x: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* Dark overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }.modal-overlay-item-listing {
-    position: fixed;
-    top: 100px;
-    right: 190px;
-
-    max-height: 600px;
-    min-height: 600px;
-    min-width: 1200px;
-    max-width: 1200px;
-
-    display: flex;
-    align-items: center;
-    justify-items: center;
-
-
-}
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   background: rgba(0, 0, 0, 0.5);
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   z-index: 1000;
+ }
 .modal-content-sell-list {
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: fixed;
-    background: white;
+  background: linear-gradient(135deg, #222, #444);
     padding: 20px;
     border-radius: 8px;
     text-align: center;
@@ -673,6 +731,7 @@ button:hover {
     gap: 15px;
     padding: 10px;
     border-bottom: 1px solid #ccc;
+  color: whitesmoke;
 
 }
 
@@ -789,13 +848,26 @@ button:hover {
         transform: translateY(0);
     }
 }
+.market-listings-header{
+  color: whitesmoke;
+  position: relative;
+  top: -50px;
+ }
 .search-input {
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 16px;
+  width: 62.5%;
+  position: relative;
+  top: -90.5px;
+  left: -130px;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #222, #444);
+  font-size: 16px;
+  color: whitesmoke;
+}
+.modal-content-sell-list-header{
+  color: whitesmoke;
 }
 
 </style>

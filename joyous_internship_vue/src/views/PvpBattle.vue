@@ -11,6 +11,7 @@ export default {
         const pvpStore = usePvpStore();
         const pvpbattles = computed(() => pvpStore.pvpbattles);
         const pvphistory = computed(() => pvpStore.pvphistory);
+        const leaderboard = computed(() => pvpStore.leaderboard);
         const winMessage = computed(() => pvpStore.winMessage);
         const showWinMessage = computed(() => pvpStore.showWinMessage);
 
@@ -20,7 +21,7 @@ export default {
 
 
         });
-        return {authStore, pvpStore, pvpbattles, winMessage, showWinMessage,pvphistory};
+        return {authStore, pvpStore, pvpbattles, winMessage, showWinMessage,pvphistory,leaderboard};
     },
     data() {
         return {
@@ -41,7 +42,8 @@ export default {
                 Paper: "/src/assets/paper.png",
                 Scissor: "/src/assets/scissor.png",
                 Default: "/src/assets/questionmark.png",
-            }
+            },
+           showLeaderboard: false,
         }
     },
     computed: {
@@ -53,6 +55,18 @@ export default {
         }
     },
     methods: {
+      shortenHostname(hostname) {
+        // Ensure that hostname is a string before checking its length
+        return typeof hostname === 'string' && hostname.length > 6
+            ? hostname.substring(0, 6) + "..."
+            : hostname;
+      },
+      shorten(shortenText) {
+        // Ensure that hostname is a string before checking its length
+        return typeof shortenText === 'string' && shortenText.length > 10
+            ? shortenText.substring(0, 10) + "..."
+            : shortenText;
+      },
         async handleJoin(user_id, pvpId, money_betted, username) {
             const canJoin = await this.checkUserisNotHost(user_id, pvpId);
             if (!canJoin) {
@@ -145,7 +159,13 @@ export default {
         async closeHistoryModal(){
 
             this.showHistory = false;
+        },
+      toggleLeaderboard() {
+        this.showLeaderboard = !this.showLeaderboard;
+        if (this.showLeaderboard) {
+          this.pvpStore.fetchLeaderboard();
         }
+      }
 
 
     }
@@ -160,11 +180,12 @@ export default {
         <h2 class="title">PVP BATTLES</h2>
 
         <button class="create-btn"  @click="showCreateBattleModal = true">Create Battle</button>
-        <button class="history-btn" @click="showHistoryModal()"> ⓘ   History  </button>
+        <button class="history-btn" @click="showHistoryModal()"> ⓘ   Battle logs  </button>
+      <button @click="toggleLeaderboard()" class="leaderboard-button">🏆Leaderboard </button>
         <div v-if="pvpbattles.length > 0" class="listing-grid">
             <div v-for="pvp in pvpbattles" :key="pvp.id" class="listing-card">
                 <div class="listing-header">
-                    <h2 class="host-name">Host: {{ pvp.username }}</h2>
+                    <h2 class="host-name">Host: {{ shortenHostname(pvp.username) }}</h2>
 
                 </div>
                 <div>  <img src="../assets/pvpgame.png" alt="Market" class="nav-icon" /></div>
@@ -203,7 +224,7 @@ export default {
                     </thead>
                     <tbody>
                     <tr v-for="pvp in pvphistory" :key="pvp.id">
-                        <td>{{ pvp.hostname }}</td>
+                      <td>{{ pvp.hostname }}</td>
                         <td>VS</td>
                         <td>{{ pvp.opponentname }}</td>
                         <td>{{ pvp.money_betted }}</td>
@@ -232,7 +253,9 @@ export default {
     <div v-if="showPickPlayModal" class="modal-overlay-bg">
         <div class="modal-pick-play">
             <div class="modal-pick-play-header">
-                <h3>Select your Play:</h3>
+                <h3 class="pick-play-header-select">Select your Play:</h3>
+                <h3 class="host-name-pick-play">{{selectedPvpUsername}}</h3>
+                <h3 class="opponent-pick-play">{{this.user.username}}</h3>
                 <button class="modal-play-close-btn" @click="handleClose()">Close</button>
             </div>
 
@@ -284,49 +307,101 @@ export default {
 
 
     <!-- Modal For Picking a Play & Bet (Create Battle) -->
-    <div v-if="showCreateBattleModal" class="modal-create-battle">
-        <div class="modal-create-battle-header">
-            <h3>CREATING A PVP BATTLE </h3>
-            <button class="modal-create-battle-close-btn" @click="showCreateBattleModal = false">Close</button>
-        </div>
+  <div v-if="showCreateBattleModal" class="modal-create-battle-overlay" @click.self="showCreateBattleModal = false">
+    <div class="modal-create-battle">
+      <div class="modal-create-battle-header">
+        <h3>CREATING A PVP BATTLE</h3>
+        <button class="modal-create-battle-close-btn" @click="showCreateBattleModal = false">Close</button>
+      </div>
 
-        <!-- Play Selection -->
-        <div class="modal-create-battle-options">
-            <button @click="selectedPlay = 'Rock'" class="play-option" :class="{ selected: selectedPlay === 'Rock' }">
-                <img src="../assets/rock.png" alt="Rock" />
-                <h3> Rock </h3>
-            </button>
-            <button @click="selectedPlay = 'Paper'" class="play-option" :class="{ selected: selectedPlay === 'Paper' }">
-                <img src="../assets/paper.png" alt="Paper" />
-                <h3> Paper </h3>
-            </button>
-            <button @click="selectedPlay = 'Scissor'" class="play-option" :class="{ selected: selectedPlay === 'Scissor' }">
-                <img src="../assets/scissor.png" alt="Scissors" />
-                <h3> Scissor </h3>
-            </button>
-        </div>
+      <!-- Play Selection -->
+      <div class="modal-create-battle-options">
+        <button @click="selectedPlay = 'Rock'" class="play-option" :class="{ selected: selectedPlay === 'Rock' }">
+          <img src="../assets/rock.png" alt="Rock" />
+          <h3>Rock</h3>
+        </button>
+        <button @click="selectedPlay = 'Paper'" class="play-option" :class="{ selected: selectedPlay === 'Paper' }">
+          <img src="../assets/paper.png" alt="Paper" />
+          <h3>Paper</h3>
+        </button>
+        <button @click="selectedPlay = 'Scissor'" class="play-option" :class="{ selected: selectedPlay === 'Scissor' }">
+          <img src="../assets/scissor.png" alt="Scissors" />
+          <h3>Scissor</h3>
+        </button>
+      </div>
 
-        <h3 class="bet-header">Select Your Bet:</h3>
-        <!-- Bet Selection -->
-        <div class="bet-selection-list">
-            <button @click="selectedBet = 100" class="bet-option" :class="{ selected: selectedBet === 100 }">100</button>
-            <button @click="selectedBet = 500" class="bet-option" :class="{ selected: selectedBet === 500 }">500</button>
-            <button @click="selectedBet = 1000" class="bet-option" :class="{ selected: selectedBet === 1000 }">1000</button>
-            <button @click="selectedBet = 2000" class="bet-option" :class="{ selected: selectedBet === 2000 }">2000</button>
-        </div>
+      <h3 class="bet-header">Select Your Bet:</h3>
 
-        <button class="confirm-btn-create" @click="handleCreateBattle(this.selectedPlay,this.selectedBet)">Confirm Battle</button>
+      <!-- Bet Selection -->
+      <div class="bet-selection-list">
+        <button @click="selectedBet = 100" class="bet-option" :class="{ selected: selectedBet === 100 }">100</button>
+        <button @click="selectedBet = 500" class="bet-option" :class="{ selected: selectedBet === 500 }">500</button>
+        <button @click="selectedBet = 1000" class="bet-option" :class="{ selected: selectedBet === 1000 }">1000</button>
+        <button @click="selectedBet = 2000" class="bet-option" :class="{ selected: selectedBet === 2000 }">2000</button>
+      </div>
+
+      <button class="confirm-btn-create" @click="handleCreateBattle(selectedPlay, selectedBet)">Confirm Battle</button>
     </div>
+  </div>
 
 
-<!--    <div v-if="this.pvpStore.showWinMessage" class="win-message">-->
-<!--        <p>{{ this.pvpStore.winMessage }}</p>-->
-<!--        <button @click="handleMessage()">Close</button>-->
-<!--    </div>-->
 
-<!--  HISTORY MODAL FOR PVP BATTLES -->
+  <div>
 
 
+    <!-- Leaderboard Button -->
+
+
+    <div v-if="showLeaderboard" class="leaderboard-popup" @click.self="toggleLeaderboard">
+      <div class="leaderboard-container">
+        <h2 class="leaderboard-title">Most Wins Leaderboard</h2>
+
+        <div class="leaderboard-podium">
+          <div v-if="leaderboard.length >= 2" class="leaderboard-second">
+            <p class="leaderboard-rank">Rank #2</p>
+            <p class="leaderboard-name">{{ shorten(leaderboard[1].username) }}</p>
+            <p class="leaderboard-wins">{{ leaderboard[1].wins }} Wins</p>
+            <p class="leaderboard-money">${{ leaderboard[1].total_money_won }}</p>
+          </div>
+
+          <div v-if="leaderboard.length >= 1" class="leaderboard-first">
+            <p class="leaderboard-rank">Rank #1</p>
+            <p class="leaderboard-name">{{ shorten(leaderboard[0].username) }}</p>
+            <p class="leaderboard-wins">{{ leaderboard[0].wins }} Wins</p>
+            <p class="leaderboard-money">${{ leaderboard[0].total_money_won }}</p>
+          </div>
+
+          <div v-if="leaderboard.length >= 3" class="leaderboard-third">
+            <p class="leaderboard-rank">Rank #3</p>
+            <p class="leaderboard-name">{{ shorten(leaderboard[2].username) }}</p>
+            <p class="leaderboard-wins">{{ leaderboard[2].wins }} Wins</p>
+            <p class="leaderboard-money">${{ leaderboard[2].total_money_won }}</p>
+          </div>
+        </div>
+
+        <table class="leaderboard-table">
+          <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Username</th>
+            <th>Wins</th>
+            <th>Total Money Won</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(player, index) in leaderboard.slice(3)" :key="player.id">
+            <td>{{ index + 4 }}</td>
+            <td>{{ player.username }}</td>
+            <td>{{ player.wins }}</td>
+            <td>${{ player.total_money_won }}</td>
+          </tr>
+          </tbody>
+        </table>
+
+        <button @click="toggleLeaderboard" class="leaderboard-close-button">Close</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -344,6 +419,23 @@ export default {
 }
 body.modal-open {
     overflow: hidden;
+}
+.modal-create-battle-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6); /* Dark overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+/* Prevents interaction outside modal */
+.modal-create-battle-overlay * {
+  pointer-events: auto;
 }
 .modal-create-battle{
     position: fixed;
@@ -452,9 +544,33 @@ body.modal-open {
 }
 
 .modal-pick-play-header{
-    position: fixed;
+    position: absolute;
     margin-top: -410px;
     color: white;
+   text-align: center;
+}
+
+.host-name-pick-play{
+    position: relative;
+    color: white;
+    top: 195px;
+    left: -190px;
+  text-align: center;
+}.opponent-pick-play{
+    position: relative;
+    color: white;
+    top: 165px;
+    left: 195px;
+  text-align: center;
+}
+
+.pick-play-header-select{
+    position: relative;
+    color: white;
+    top:30px;
+    left: 10px;
+
+
 
 }
 .modal-play-close-btn{
@@ -573,17 +689,18 @@ body.modal-open {
 
     /* Main Container */
 .container {
+  position: relative;
     text-align: center;
     background: transparent;
     padding: 20px;
-    text-align: center;
-    min-width: 1200px;
-    margin-right: 125px;
+    min-width: 1528px;
+    left: -156px;
     margin-top: 120px;
-    border: #2c3e50 2px solid;
     max-height: 650px;
     min-height: 650px;
     max-width: 1200px;
+  overflow-x: hidden;
+  overflow-y: hidden;
 }
 
 /* Title */
@@ -592,7 +709,7 @@ body.modal-open {
     font-size: 24px;
     color: #f5ff28;
     left: -450px;
-    top: 0px;
+    top: -20px;
     font-weight: bold;
     font-family: "Brush Script MT";
     font-size: 40px;
@@ -613,6 +730,7 @@ body.modal-open {
     overflow-y: auto;
     min-height: 500px;
     max-height: 500px;
+  margin-left: 153px;
 }
 
 /* Battle Card */
@@ -644,6 +762,7 @@ body.modal-open {
     margin-bottom: 10px;
 }
 
+
 .nav-icon {
     width: 40px;
     height: 40px;
@@ -665,8 +784,8 @@ body.modal-open {
 .create-btn {
     background: #5de33f;
     position: relative;
-    top: -50px;
-    right: -450px;
+    top: -75px;
+    right: -570px;
     color: #222;
     padding: 10px 15px;
     border: none;
@@ -677,23 +796,51 @@ body.modal-open {
     transition: background 0.2s;
     margin-right: 10px;
     margin-left: 10px;
-}.history-btn {
+
+}
+.leaderboard-button {
     position: relative;
-    top: -50px;
-    right: -450px;
-    background: transparent;
+    top: -75px;
+    left: -390px;
+    background: none;
     font-weight: bold;
-    color: #ffffff;
+    color: #8e918e;
     padding: 10px 15px;
     border: none;
     border-radius: 6px;
     cursor: pointer;
     font-size: 16px;
-    width: 120px;
+    width: 200px;
     transition: background 0.2s;
     margin-right: 10px;
     margin-left: 10px;
-}.history-btn:hover{
+
+}.leaderboard-button:hover {
+  color: red;
+  transform: scale(105%);
+
+
+ }
+
+.history-btn {
+  background: #a3a1a1;
+  position: relative;
+  top: -75px;
+  right: -560px;
+
+  font-weight: bold;
+  color: #ffffff;
+  padding: 10px 15px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 120px;
+  transition: background 0.2s;
+  margin-right: 10px;
+  margin-left: 10px;
+}
+.history-btn:hover{
     transform: scale(105%);
     color:red;
 
@@ -790,7 +937,7 @@ body.modal-open {
 }
 
 .popup-history {
-    background: white;
+  background: linear-gradient(45deg, #373737 60%, #8f8f8f);
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
@@ -799,6 +946,7 @@ body.modal-open {
     animation: fadeIn 0.3s ease-in-out;
     min-height: 400px;
     max-height: 400px;
+  color: whitesmoke;
 
 }
 .popup-header {
@@ -809,11 +957,12 @@ body.modal-open {
     border-bottom: 1px solid #ddd;
     padding-bottom: 10px;
     margin-bottom: 10px;
+  color: whitesmoke;
 }
 .show-history-close-btn {
     position: relative;
-    top: 335px;
-    right: 50px;
+    top: 340px;
+    right: 80px;
     background: red;
     color: white;
     border: none;
@@ -837,7 +986,7 @@ body.modal-open {
 .market-history-table th{
     position: sticky;
     top: 0;
-    background: #f8f8f8;
+    background: grey;
     z-index: 10;
     padding: 10px;
     text-align: center;
@@ -852,8 +1001,152 @@ body.modal-open {
 
 }
 
-.market-history-table th {
-    background-color: #f4f4f4;
+
+.leaderboard-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6); /* Dark overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+
+}
+.leaderboard-popup * {
+  pointer-events: auto;
+}
+
+.leaderboard-container {
+  background: linear-gradient(45deg, #121111 1%, #8f8f8f);
+  padding: 20px;
+  border-radius: 10px;
+  width: 400px;
+  text-align: center;
+  position: relative;
+  z-index: 1000;
+}
+
+/* Close button */
+.leaderboard-close-button {
+  margin-top: 15px;
+  padding: 8px 15px;
+  background: red;
+  color: white;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.leaderboard-close-button:hover {
+  background: darkred;
+}
+
+.leaderboard-title {
+  margin-bottom: 10px;
+  color: whitesmoke;
+}
+
+/* Podium styling */
+.leaderboard-podium {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  margin-bottom: 20px;
+  gap: 10px;
+  height: 150px;
+}
+
+.leaderboard-first,
+.leaderboard-second,
+.leaderboard-third {
+  text-align: center;
+  width: 100px;
+  border-radius: 10px;
+  padding: 10px;
+  font-weight: bold;
+  color: white;
+
+}
+
+.leaderboard-first {
+background: gold;
+  height: 160px;
+  width: 120px;
+  color: white; /* Ensures text is readable on black */
+}
+
+.leaderboard-second {
+  background-color: silver;
+  height: 130px;
+  width: 120px;
+}
+
+.leaderboard-third {
+  background-color: #cd7f32;
+  height: 110px;
+  width: 120px;
+}
+
+.leaderboard-rank {
+  font-size: .75rem !important;
+  font-family: Soleil, sans-serif !important;
+
+  position: relative;
+  top:-10px;
+  font-weight: bold;
+  font-variant-caps: normal;
+  color: black;
+  font-family: "Brush Script MT";
+  font-weight: bold;
+
+
+}
+
+.leaderboard-name {
+  font-size: 18px;
+  position: relative;
+  top:-15px;
+  text-transform: uppercase;
+  color: black;
+  font-family: "Brush Script MT";
+  font-weight: bold;
+}
+
+.leaderboard-wins,
+.leaderboard-money {
+  font-size: 14px;
+  position: relative;
+  top:-20px;
+  text-transform: uppercase;
+  color: black;
+  font-family: "Brush Script MT";
+  font-weight: bold;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  color: whitesmoke;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+.leaderboard-close-button {
+  margin-top: 10px;
+  background-color: red;
+  color: white;
+  padding: 5px 10px;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
 }
 </style>
 

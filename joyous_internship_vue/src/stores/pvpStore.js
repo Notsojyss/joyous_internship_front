@@ -8,6 +8,7 @@ export const usePvpStore = defineStore("pvp", {
         pvphistory: [],
         winMessage: "",
         showWinMessage: false,
+        leaderboard: [],
 
     }),
     actions: {
@@ -49,13 +50,13 @@ export const usePvpStore = defineStore("pvp", {
 
                 const apiUrl = `http://joyous-internship-api-local.com/api/pvp/join-battle/${pvpId}`;
                 const response = await axios.post(apiUrl,
-                    { play: play },
+                    {play: play},
                     {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: "application/json",
-                    },
-                });
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            Accept: "application/json",
+                        },
+                    });
                 if (response.data.message) {
                     this.winMessage = response.data.message;
                     this.showWinMessage = true;
@@ -71,38 +72,38 @@ export const usePvpStore = defineStore("pvp", {
             this.showWinMessage = false;
 
         },
-        async createBattle(play, money_betted){
-                try {
-                    const token = localStorage.getItem("auth_token");
-                    if (!token) {
-                        console.error("No authentication token found");
-                        return;
-                    }
+        async createBattle(play, money_betted) {
+            try {
+                const token = localStorage.getItem("auth_token");
+                if (!token) {
+                    console.error("No authentication token found");
+                    return;
+                }
 
-                    const apiUrl = `http://joyous-internship-api-local.com/api/pvp/assignPlay`;
-                    const response = await axios.post(apiUrl,
-                        {
+                const apiUrl = `http://joyous-internship-api-local.com/api/pvp/assignPlay`;
+                const response = await axios.post(apiUrl,
+                    {
                         play: play,
                         money_betted: money_betted
+                    },
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            Accept: "application/json",
                         },
-                        {
-                            headers: {
-                                Authorization: `Bearer ${token}`,
-                                Accept: "application/json",
-                            },
-                        });
-                    this.fetchPvpBattles();
-                    alert("Battle created successfully:", response.data);
-                    console.log("Battle created successfully:", response.data);
+                    });
+                this.fetchPvpBattles();
+                alert("Battle created successfully:", response.data);
+                console.log("Battle created successfully:", response.data);
 
-                } catch (error) {
-                    console.error("Error creating battle:", error);
-                    if (error.response) {
-                        console.error("Response Status:", error.response.status);
-                        console.error("Response Data:", error.response.data);
-                    }
+            } catch (error) {
+                console.error("Error creating battle:", error);
+                if (error.response) {
+                    console.error("Response Status:", error.response.status);
+                    console.error("Response Data:", error.response.data);
                 }
-            },
+            }
+        },
         async fetchHostPlay(pvpId) {
             try {
                 const token = localStorage.getItem("auth_token");
@@ -151,9 +152,51 @@ export const usePvpStore = defineStore("pvp", {
                 }
             }
 
-        }
+        },
+        async fetchLeaderboard() {
+            try {
+                const token = localStorage.getItem("auth_token");
+                if (!token) {
+                    console.error("No authentication token found");
+                    return;
+                }
 
-    },
+                const apiUrl = "http://joyous-internship-api-local.com/api/pvp/getLeaderboard";
+                const response = await axios.get(apiUrl, {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: "application/json",
+                    },
+                });
+                this.leaderboard = response.data;
+            } catch (error) {
+                console.error("Error fetching leaderboard:", error);
+
+                if (!error.response) {
+                    console.error("Network error: Unable to reach the server.");
+                    alert("Network error. Please check your internet connection.");
+                    return;
+                }
+
+                const { status, data } = error.response;
+
+                switch (status) {
+                    case 404:
+                        console.warn("Leaderboard not found.");
+                        alert("Leaderboard data not found.");
+                        break;
+                    case 500:
+                        console.error("Server error:", data);
+                        alert("Something went wrong on the server. Please try again later.");
+                        break;
+                    default:
+                        console.error("Unexpected error:", data);
+                        alert(`Error: ${data.message || "An unexpected error occurred."}`);
+                }
+            }
 
 
+        },
+
+    }
 });
